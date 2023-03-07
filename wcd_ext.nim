@@ -3,11 +3,10 @@ import strutils
 import logging
 import strformat
 
+include modify_params
+
 var consoleLog = newConsoleLogger(useStderr = true)
 addHandler(consoleLog)
-
-const
-    SkipChars: seq[char] = @"-+="
 
 let
     IsDebug = getEnv("WCDEXT_DEBUG", "1").parseBool
@@ -24,28 +23,23 @@ if IsDebug:
     debug(&"WildcardLast: {WildcardLast}")
 
 var
-    params: seq[TaintedString] = commandLineParams()
-    last: seq[TaintedString] = params[params.high].split('\\')
-    joined: TaintedString = ""
-    firstChar: char = params[params.low][0]
+    params: seq[string] = commandLineParams()
+    pathSeq: seq[string] = params
+    firstParam: string = params[params.low]
+    firstChar: char = firstParam[0]
+    joined: string = ""
 
 if firstChar in SkipChars:
-    discard
+    pathSeq = params[params.low+1 .. params.high]
+
+joined = combinePaths(pathSeq, IsDebug, PrependSlash, PrependWildcard, AppendWildcard, WildcardLast)
+
+if firstChar in SkipChars:
+    if pathSeq.high - pathSeq.low == -1:
+        joined = &"{firstParam}"
+    else:
+        joined = &"{firstParam} {joined}"
 else:
-    for n in last.low .. last.high:
-        var
-            addToLast = (n < last.high) or (WildcardLast == true and n == last.high)
-        if PrependWildcard == true and addToLast:
-            last[n] = '*' & last[n]
-        if AppendWildcard == true and addToLast:
-            last[n] = last[n] & '*'
+    joined = &"{joined}"
 
-    joined = last.join("\\")
-    if PrependSlash == true:
-        joined = '\\' & joined
-
-    params[params.high] = joined
-
-if IsDebug:
-    debug(&"params: {params}")
-echo params.join(" ")
+echo joined

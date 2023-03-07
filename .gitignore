@@ -1,2 +1,5 @@
 *.exe
 *.bat
+
+.vscode
+build
